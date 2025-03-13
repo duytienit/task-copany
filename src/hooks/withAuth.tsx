@@ -5,6 +5,7 @@ import { useAppSelector } from './reduxHooks';
 import { selectIsAuthenticated, selectUserRole } from '@/features/auth/authSlice';
 import { Alert } from '@/components/ui/alert';
 import { validateUserRole } from '@/services/authService';
+import { Shield, AlertTriangle } from 'lucide-react';
 
 interface WithAuthOptions {
   requiredRoles?: string[];
@@ -34,10 +35,15 @@ export const withAuth = <P extends object>(
         return (
           <div className="h-full flex items-center justify-center p-6">
             <Alert variant="destructive" className="max-w-md">
-              <h4 className="text-lg font-medium mb-2">Access Denied</h4>
+              <div className="flex items-center gap-2 mb-2">
+                <Shield className="h-5 w-5" />
+                <h4 className="text-lg font-medium">Access Denied</h4>
+              </div>
               <p>You don't have permission to access this page.</p>
-              <p className="mt-2">Your role: {userRole}</p>
-              <p>Required role(s): {requiredRoles.join(', ')}</p>
+              <div className="mt-4 p-2 bg-destructive/20 rounded-md">
+                <p className="text-sm">Your role: <span className="font-medium">{userRole}</span></p>
+                <p className="text-sm">Required role(s): <span className="font-medium">{requiredRoles.join(', ')}</span></p>
+              </div>
             </Alert>
           </div>
         );
