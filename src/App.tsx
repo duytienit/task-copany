@@ -21,6 +21,16 @@ import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import NotFound from "@/pages/NotFound";
 
+// Auth HOC
+import withAuth from "@/hooks/withAuth";
+
+// Apply role-based protection to pages
+const ProtectedDashboard = withAuth(Dashboard);
+const ProtectedProjects = withAuth(Projects);
+const ProtectedTasks = withAuth(Tasks);
+const ProtectedUsers = withAuth(Users, { requiredRoles: ['Admin', 'Manager'] });
+const ProtectedSettings = withAuth(Settings);
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -40,11 +50,11 @@ const App = () => (
             {/* Main Routes with Layout */}
             <Route path="/" element={<MainLayout />}>
               <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="projects" element={<Projects />} />
-              <Route path="tasks" element={<Tasks />} />
-              <Route path="users" element={<Users />} />
-              <Route path="settings" element={<Settings />} />
+              <Route path="dashboard" element={<ProtectedDashboard />} />
+              <Route path="projects" element={<ProtectedProjects />} />
+              <Route path="tasks" element={<ProtectedTasks />} />
+              <Route path="users" element={<ProtectedUsers />} />
+              <Route path="settings" element={<ProtectedSettings />} />
             </Route>
             
             {/* 404 Route */}

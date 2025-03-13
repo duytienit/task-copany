@@ -1,47 +1,83 @@
 
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useAppDispatch } from '@/hooks/reduxHooks';
-import { loginSuccess } from '@/features/auth/authSlice';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { useAppDispatch, useAppSelector } from '@/hooks/reduxHooks';
+import { loginSuccess, loginFailure, loginStart, clearError, selectAuthError, selectIsLoading } from '@/features/auth/authSlice';
+import { registerUser, RegisterData } from '@/services/authService';
+import { Loader2 } from 'lucide-react';
+
+const schema = yup.object({
+  name: yup.string().required('Full name is required'),
+  email: yup.string().email('Invalid email format').required('Email is required'),
+  password: yup.string()
+    .min(8, 'Password must be at least 8 characters')
+    .required('Password is required'),
+  confirmPassword: yup.string()
+    .oneOf([yup.ref('password')], 'Passwords must match')
+    .required('Please confirm your password'),
+  termsAccepted: yup.boolean()
+    .oneOf([true], 'You must accept the terms and conditions')
+}).required();
+
+type FormData = yup.InferType<typeof schema>;
 
 const Register: React.FC = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const error = useAppSelector(selectAuthError);
+  const isLoading = useAppSelector(selectIsLoading);
   
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-    
-    setError('');
-    
-    // In a real app, this would be an API call to register
-    // For demo purposes, we'll simulate creating a new user
-    const newUser = {
-      id: `user-${Date.now()}`,
-      name,
-      email,
-      role: 'User',
-      avatar: `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? 'men' : 'women'}/${Math.floor(Math.random() * 100)}.jpg`,
+  const form = useForm<FormData>({
+    resolver: yupResolver(schema),
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      termsAccepted: false,
+    },
+  });
+  
+  // Clear errors when component unmounts
+  useEffect(() => {
+    return () => {
+      dispatch(clearError());
     };
+  }, [dispatch]);
+  
+  const onSubmit = async (data: FormData) => {
+    dispatch(loginStart());
     
-    // Simulate successful registration and login
-    setTimeout(() => {
-      dispatch(loginSuccess(newUser));
-      navigate('/dashboard');
-    }, 1000);
+    try {
+      const registerData: RegisterData = {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+      };
+      
+      const response = await registerUser(registerData);
+      
+      if (response.success && response.user && response.token) {
+        dispatch(loginSuccess({ 
+          user: response.user,
+          token: response.token
+        }));
+        navigate('/dashboard');
+      } else {
+        dispatch(loginFailure(response.error || 'Registration failed'));
+      }
+    } catch (err) {
+      dispatch(loginFailure('An unexpected error occurred'));
+    }
   };
   
   return (
@@ -52,95 +88,113 @@ const Register: React.FC = () => {
       </div>
       
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
       
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-            Full Name
-          </label>
-          <input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="John Doe"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            required
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Full Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="John Doe" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="john@example.com"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            required
+          
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="john@example.com" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            required
+          
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="••••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        
-        <div>
-          <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1">
-            Confirm Password
-          </label>
-          <input
-            id="confirm-password"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="••••••••"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            required
+          
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm Password</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="••••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        
-        <div className="flex items-center">
-          <input
-            id="terms"
-            type="checkbox"
-            className="h-4 w-4 text-primary-600 border-gray-300 rounded"
-            required
+          
+          <FormField
+            control={form.control}
+            name="termsAccepted"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                <FormControl>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 text-primary-600 border-gray-300 rounded"
+                    checked={field.value}
+                    onChange={field.onChange}
+                  />
+                </FormControl>
+                <FormLabel className="font-normal cursor-pointer">
+                  I agree to the{' '}
+                  <Link to="#" className="text-primary-600 hover:text-primary-500">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="#" className="text-primary-600 hover:text-primary-500">
+                    Privacy Policy
+                  </Link>
+                </FormLabel>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          <label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
-            I agree to the{' '}
-            <a href="#" className="text-primary-600 hover:text-primary-500">
-              Terms of Service
-            </a>{' '}
-            and{' '}
-            <a href="#" className="text-primary-600 hover:text-primary-500">
-              Privacy Policy
-            </a>
-          </label>
-        </div>
-        
-        <Button type="submit" className="w-full bg-primary-500 hover:bg-primary-600">
-          Create Account
-        </Button>
-      </form>
+          
+          <Button 
+            type="submit" 
+            className="w-full bg-primary-500 hover:bg-primary-600"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating Account...
+              </>
+            ) : (
+              'Create Account'
+            )}
+          </Button>
+        </form>
+      </Form>
       
       <div className="mt-6">
         <div className="relative">
@@ -153,7 +207,7 @@ const Register: React.FC = () => {
         </div>
         
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <Button variant="outline" className="w-full">
+          <Button variant="outline" className="w-full" type="button">
             <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -174,7 +228,7 @@ const Register: React.FC = () => {
             </svg>
             Google
           </Button>
-          <Button variant="outline" className="w-full">
+          <Button variant="outline" className="w-full" type="button">
             <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
             </svg>

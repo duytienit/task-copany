@@ -8,10 +8,12 @@ import {
   CheckSquare,
   Users,
   Settings,
-  LogOut
+  LogOut,
+  Shield
 } from 'lucide-react';
-import { useAppDispatch } from '@/hooks/reduxHooks';
-import { logout } from '@/features/auth/authSlice';
+import { useAppDispatch, useAppSelector } from '@/hooks/reduxHooks';
+import { logout, selectUserRole } from '@/features/auth/authSlice';
+import { validateUserRole } from '@/services/authService';
 
 interface SidebarItemProps {
   icon: React.ReactNode;
@@ -47,32 +49,45 @@ const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
+  const userRole = useAppSelector(selectUserRole);
 
+  // Define which menu items are visible to which roles
   const menuItems = [
     {
       icon: <LayoutDashboard size={20} />,
       label: 'Dashboard',
-      path: '/dashboard'
+      path: '/dashboard',
+      roles: ['Admin', 'Manager', 'Employee'], // Accessible to all roles
     },
     {
       icon: <FolderKanban size={20} />,
       label: 'Projects',
-      path: '/projects'
+      path: '/projects',
+      roles: ['Admin', 'Manager', 'Employee'], // Accessible to all roles
     },
     {
       icon: <CheckSquare size={20} />,
       label: 'Tasks',
-      path: '/tasks'
+      path: '/tasks',
+      roles: ['Admin', 'Manager', 'Employee'], // Accessible to all roles
     },
     {
       icon: <Users size={20} />,
       label: 'Users',
-      path: '/users'
+      path: '/users',
+      roles: ['Admin', 'Manager'], // Only admin and managers can manage users
+    },
+    {
+      icon: <Shield size={20} />,
+      label: 'Admin Panel',
+      path: '/admin',
+      roles: ['Admin'], // Only admin can access
     },
     {
       icon: <Settings size={20} />,
       label: 'Settings',
-      path: '/settings'
+      path: '/settings',
+      roles: ['Admin', 'Manager', 'Employee'], // Accessible to all roles
     }
   ];
 
@@ -81,14 +96,24 @@ const Sidebar: React.FC = () => {
     navigate('/auth/login');
   };
 
+  // Filter menu items based on user role
+  const filteredMenuItems = menuItems.filter(item => 
+    validateUserRole(item.roles, userRole)
+  );
+
   return (
     <div className="h-screen w-64 border-r border-gray-200 bg-white flex flex-col">
       <div className="p-4 border-b border-gray-200">
         <h1 className="text-xl font-bold text-primary-500">TaskTrove</h1>
+        {userRole && (
+          <div className="mt-1 text-xs font-medium text-gray-500 bg-gray-100 rounded-full px-2 py-1 inline-block">
+            {userRole}
+          </div>
+        )}
       </div>
       
       <div className="flex-1 p-4 space-y-1">
-        {menuItems.map((item) => (
+        {filteredMenuItems.map((item) => (
           <SidebarItem
             key={item.path}
             icon={item.icon}

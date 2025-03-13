@@ -1,36 +1,76 @@
 
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useAppDispatch } from '@/hooks/reduxHooks';
-import { loginStart, loginSuccess, loginFailure } from '@/features/auth/authSlice';
-import mockData from '@/data/mock-data.json';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { useAppDispatch, useAppSelector } from '@/hooks/reduxHooks';
+import { loginStart, loginSuccess, loginFailure, clearError, selectAuthError, selectIsLoading } from '@/features/auth/authSlice';
+import { loginUser, LoginCredentials } from '@/services/authService';
+import { Loader2 } from 'lucide-react';
+
+const schema = yup.object({
+  email: yup.string().email('Invalid email format').required('Email is required'),
+  password: yup.string().required('Password is required'),
+  rememberMe: yup.boolean(),
+}).required();
+
+type FormData = yup.InferType<typeof schema>;
 
 const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+  const error = useAppSelector(selectAuthError);
+  const isLoading = useAppSelector(selectIsLoading);
   
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const from = (location.state as any)?.from?.pathname || '/dashboard';
+  
+  const form = useForm<FormData>({
+    resolver: yupResolver(schema),
+    defaultValues: {
+      email: '',
+      password: '',
+      rememberMe: false,
+    },
+  });
+  
+  // Clear errors when component unmounts
+  useEffect(() => {
+    return () => {
+      dispatch(clearError());
+    };
+  }, [dispatch]);
+  
+  const onSubmit = async (data: FormData) => {
     dispatch(loginStart());
     
-    // In a real app, this would be an API call
-    setTimeout(() => {
-      // For demo purposes, just check if the email exists in our mock data
-      const user = mockData.users.find(user => user.email.toLowerCase() === email.toLowerCase());
+    try {
+      const credentials: LoginCredentials = {
+        email: data.email,
+        password: data.password,
+      };
       
-      if (user && password) {
-        dispatch(loginSuccess(user));
-        navigate('/dashboard');
+      const response = await loginUser(credentials);
+      
+      if (response.success && response.user && response.token) {
+        dispatch(loginSuccess({ 
+          user: response.user,
+          token: response.token
+        }));
+        navigate(from, { replace: true });
       } else {
-        dispatch(loginFailure('Invalid email or password'));
+        dispatch(loginFailure(response.error || 'Login failed'));
       }
-    }, 1000);
+    } catch (err) {
+      dispatch(loginFailure('An unexpected error occurred'));
+    }
   };
   
   return (
@@ -40,57 +80,81 @@ const Login: React.FC = () => {
         <p className="text-gray-600 mt-1">Sign in to your account</p>
       </div>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="john@example.com"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            required
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="john@example.com" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <a href="#" className="text-sm text-primary-600 hover:text-primary-500">
-              Forgot password?
-            </a>
-          </div>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            required
+          
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex items-center justify-between">
+                  <FormLabel>Password</FormLabel>
+                  <Link to="#" className="text-sm text-primary-600 hover:text-primary-500">
+                    Forgot password?
+                  </Link>
+                </div>
+                <FormControl>
+                  <Input type="password" placeholder="••••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        
-        <div className="flex items-center">
-          <input
-            id="remember-me"
-            type="checkbox"
-            className="h-4 w-4 text-primary-600 border-gray-300 rounded"
+          
+          <FormField
+            control={form.control}
+            name="rememberMe"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 py-1">
+                <FormControl>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 text-primary-600 border-gray-300 rounded"
+                    checked={field.value}
+                    onChange={field.onChange}
+                  />
+                </FormControl>
+                <FormLabel className="font-normal cursor-pointer">Remember me</FormLabel>
+              </FormItem>
+            )}
           />
-          <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-            Remember me
-          </label>
-        </div>
-        
-        <Button type="submit" className="w-full bg-primary-500 hover:bg-primary-600">
-          Sign In
-        </Button>
-      </form>
+          
+          <Button 
+            type="submit" 
+            className="w-full bg-primary-500 hover:bg-primary-600"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              'Sign In'
+            )}
+          </Button>
+        </form>
+      </Form>
       
       <div className="mt-6">
         <div className="relative">
@@ -103,7 +167,7 @@ const Login: React.FC = () => {
         </div>
         
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <Button variant="outline" className="w-full">
+          <Button variant="outline" className="w-full" type="button">
             <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -124,7 +188,7 @@ const Login: React.FC = () => {
             </svg>
             Google
           </Button>
-          <Button variant="outline" className="w-full">
+          <Button variant="outline" className="w-full" type="button">
             <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
             </svg>

@@ -1,13 +1,17 @@
 
 import React from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAppSelector } from '@/hooks/reduxHooks';
+import { selectIsAuthenticated } from '@/features/auth/authSlice';
 
 const AuthLayout: React.FC = () => {
-  const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const location = useLocation();
   
+  // Redirect to the page they tried to visit or to dashboard if they're already logged in
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" />;
+    const from = (location.state as any)?.from?.pathname || '/dashboard';
+    return <Navigate to={from} replace />;
   }
   
   return (

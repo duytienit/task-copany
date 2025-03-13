@@ -1,15 +1,17 @@
 
 import React from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { useAppSelector } from '@/hooks/reduxHooks';
+import { selectIsAuthenticated } from '@/features/auth/authSlice';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
 const MainLayout: React.FC = () => {
-  const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const location = useLocation();
   
   if (!isAuthenticated) {
-    return <Navigate to="/auth/login" />;
+    return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
   
   return (
