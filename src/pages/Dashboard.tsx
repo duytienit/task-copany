@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/hooks/reduxHooks';
 import { fetchProjectsSuccess } from '@/features/projects/projectsSlice';
 import { fetchTasksSuccess } from '@/features/tasks/tasksSlice';
@@ -12,19 +12,57 @@ import {
   Clock,
   BarChart,
   Users,
-  FolderKanban
+  FolderKanban,
+  ArrowUpRight,
+  CalendarDays,
+  BarChart4
 } from 'lucide-react';
+import {
+  BarChart as RechartBarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const Dashboard: React.FC = () => {
   const dispatch = useAppDispatch();
   const { projects } = useAppSelector((state) => state.projects);
   const { tasks } = useAppSelector((state) => state.tasks);
   const { users } = useAppSelector((state) => state.users);
+  const [activityLogs, setActivityLogs] = useState<Array<{id: string, message: string, time: string}>>([]);
   
   useEffect(() => {
     dispatch(fetchProjectsSuccess(mockData.projects));
     dispatch(fetchTasksSuccess(mockData.tasks));
     dispatch(fetchUsersSuccess(mockData.users));
+    
+    // Generate mock activity logs
+    const generateActivityLogs = () => {
+      const actions = ['created', 'updated', 'completed', 'commented on'];
+      const items = ['task', 'project', 'document', 'meeting'];
+      
+      return Array(5).fill(null).map((_, i) => {
+        const randomUser = mockData.users[Math.floor(Math.random() * mockData.users.length)];
+        const randomAction = actions[Math.floor(Math.random() * actions.length)];
+        const randomItem = items[Math.floor(Math.random() * items.length)];
+        const hoursAgo = Math.floor(Math.random() * 24);
+        
+        return {
+          id: `log-${i}`,
+          message: `${randomUser.name} ${randomAction} a ${randomItem}`,
+          time: `${hoursAgo}h ago`
+        };
+      });
+    };
+    
+    setActivityLogs(generateActivityLogs());
   }, [dispatch]);
   
   const getTaskStatusCounts = () => {
@@ -42,15 +80,32 @@ const Dashboard: React.FC = () => {
   const taskStatusCounts = getTaskStatusCounts();
   const totalTasks = tasks.length;
   
+  // Data for task status chart
+  const taskStatusData = [
+    { name: 'Completed', value: taskStatusCounts.completed },
+    { name: 'In Progress', value: taskStatusCounts.inProgress },
+    { name: 'To Do', value: taskStatusCounts.todo },
+  ];
+  
+  // Data for project progress chart
+  const projectProgressData = projects.map(project => ({
+    name: project.name.split(' ')[0],
+    progress: project.progress
+  }));
+
+  // Colors for charts
+  const COLORS = ['#10B981', '#3B82F6', '#6B7280'];
+  
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
         <p className="text-gray-600">Welcome to your project management dashboard</p>
       </div>
       
+      {/* Key Metrics Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="p-6">
+        <Card className="p-6 hover-scale">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Total Projects</p>
@@ -63,12 +118,18 @@ const Dashboard: React.FC = () => {
           <div className="mt-4">
             <Progress value={65} className="h-1.5" />
           </div>
-          <p className="text-sm text-gray-500 mt-2">
-            {projects.filter(p => p.status === 'In Progress').length} in progress
-          </p>
+          <div className="mt-2 flex justify-between items-center">
+            <p className="text-sm text-gray-500">
+              {projects.filter(p => p.status === 'In Progress').length} in progress
+            </p>
+            <div className="flex items-center text-xs text-green-600 font-medium">
+              <ArrowUpRight size={14} />
+              <span className="ml-1">12%</span>
+            </div>
+          </div>
         </Card>
         
-        <Card className="p-6">
+        <Card className="p-6 hover-scale">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Total Tasks</p>
@@ -84,12 +145,18 @@ const Dashboard: React.FC = () => {
               className="h-1.5" 
             />
           </div>
-          <p className="text-sm text-gray-500 mt-2">
-            {taskStatusCounts.completed} completed
-          </p>
+          <div className="mt-2 flex justify-between items-center">
+            <p className="text-sm text-gray-500">
+              {taskStatusCounts.completed} completed
+            </p>
+            <div className="flex items-center text-xs text-green-600 font-medium">
+              <ArrowUpRight size={14} />
+              <span className="ml-1">8%</span>
+            </div>
+          </div>
         </Card>
         
-        <Card className="p-6">
+        <Card className="p-6 hover-scale">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Team Members</p>
@@ -111,59 +178,109 @@ const Dashboard: React.FC = () => {
               ))}
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">
-            Active team
-          </p>
+          <div className="mt-2 flex justify-between items-center">
+            <p className="text-sm text-gray-500">
+              Active team
+            </p>
+            <div className="flex items-center text-xs text-green-600 font-medium">
+              <ArrowUpRight size={14} />
+              <span className="ml-1">2 new</span>
+            </div>
+          </div>
         </Card>
         
-        <Card className="p-6">
+        <Card className="p-6 hover-scale">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Upcoming Deadlines</p>
               <h3 className="text-2xl font-bold mt-1">5</h3>
             </div>
             <div className="bg-orange-100 p-3 rounded-full">
-              <Clock className="text-accent-500" size={24} />
+              <CalendarDays className="text-accent-500" size={24} />
             </div>
           </div>
           <div className="mt-4">
             <Progress value={40} className="h-1.5" />
           </div>
-          <p className="text-sm text-gray-500 mt-2">
-            3 this week
-          </p>
+          <div className="mt-2 flex justify-between items-center">
+            <p className="text-sm text-gray-500">
+              3 this week
+            </p>
+            <div className="flex items-center text-xs text-orange-600 font-medium">
+              <Clock size={14} />
+              <span className="ml-1">Urgent</span>
+            </div>
+          </div>
         </Card>
       </div>
       
+      {/* Charts & Data Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Project Progress Chart */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold">Project Progress</h3>
+            <BarChart4 size={20} className="text-gray-400" />
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <RechartBarChart
+                data={projectProgressData}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="progress" fill="#3B82F6" />
+              </RechartBarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+        
+        {/* Task Status Distribution */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold">Task Status</h3>
+            <BarChart size={20} className="text-gray-400" />
+          </div>
+          <div className="h-64 flex items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={taskStatusData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {taskStatusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      </div>
+      
+      {/* Recent Activities & Tasks Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6">
-          <h3 className="text-lg font-bold mb-4">Recent Projects</h3>
+          <h3 className="text-lg font-bold mb-4">Recent Activity</h3>
           <div className="space-y-4">
-            {projects.slice(0, 3).map((project) => (
-              <div key={project.id} className="flex items-center gap-4">
-                <div className="bg-primary-100 p-3 rounded-full">
-                  <FolderKanban className="text-primary-500" size={20} />
+            {activityLogs.map((log) => (
+              <div key={log.id} className="flex items-start gap-4">
+                <div className="bg-gray-100 rounded-full p-2 mt-1">
+                  <Clock className="text-gray-500" size={16} />
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-medium">{project.name}</h4>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Progress 
-                      value={project.progress} 
-                      className="h-1.5 flex-1" 
-                    />
-                    <span className="text-sm text-gray-500">{project.progress}%</span>
-                  </div>
-                </div>
-                <div className="text-sm font-medium">
-                  <span className={`px-2 py-1 rounded-full ${
-                    project.status === 'Completed' 
-                      ? 'bg-green-100 text-green-800' 
-                      : project.status === 'In Progress'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {project.status}
-                  </span>
+                <div>
+                  <p className="text-sm">{log.message}</p>
+                  <p className="text-xs text-gray-500 mt-1">{log.time}</p>
                 </div>
               </div>
             ))}
