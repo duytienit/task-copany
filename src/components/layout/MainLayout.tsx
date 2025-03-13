@@ -8,6 +8,8 @@ import Header from './Header';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 import { fetchTasksSuccess } from '@/features/tasks/tasksSlice';
+import { fetchProjectsSuccess } from '@/features/projects/projectsSlice';
+import { fetchUsersSuccess } from '@/features/users/usersSlice';
 import mockData from '@/data/mock-data.json';
 
 const MainLayout: React.FC = () => {
@@ -16,10 +18,12 @@ const MainLayout: React.FC = () => {
   const dispatch = useAppDispatch();
   const { toast } = useToast();
   
-  // Simulate real-time notifications for task assignments
+  // Initialize data and simulate real-time notifications
   useEffect(() => {
     // Initial data load
     dispatch(fetchTasksSuccess(mockData.tasks));
+    dispatch(fetchProjectsSuccess(mockData.projects));
+    dispatch(fetchUsersSuccess(mockData.users));
     
     // Simulate a new task assignment after 5 seconds
     const timer = setTimeout(() => {
@@ -62,6 +66,7 @@ const MainLayout: React.FC = () => {
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
+        <Toaster />
       </div>
     </div>
   );
