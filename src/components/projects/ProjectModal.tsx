@@ -55,20 +55,29 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, project })
   });
 
   const handleSubmit = (values: ProjectFormValues) => {
+    // Ensure all required properties are present for type safety
     if (isEditMode) {
       dispatch(
         updateProject({
-          ...project,
-          ...values,
-          progress: project.progress, // Keep existing progress
+          id: project.id,
+          name: values.name,
+          description: values.description,
+          status: values.status,
+          progress: project.progress,
+          deadline: values.deadline,
+          teamMembers: values.teamMembers || [],
         })
       );
     } else {
       dispatch(
         addProject({
           id: `project-${Date.now()}`,
-          ...values,
+          name: values.name,
+          description: values.description,
+          status: values.status,
           progress: 0,
+          deadline: values.deadline,
+          teamMembers: values.teamMembers || [],
         })
       );
     }

@@ -65,15 +65,28 @@ const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) => {
     if (isEditMode) {
       dispatch(
         updateTask({
-          ...task,
-          ...values,
+          id: task.id,
+          title: values.title,
+          description: values.description,
+          status: values.status,
+          priority: values.priority,
+          projectId: values.projectId,
+          assignedTo: values.assignedTo,
+          dueDate: values.dueDate,
+          createdBy: task.createdBy,
         })
       );
     } else {
       dispatch(
         addTask({
           id: `task-${Date.now()}`,
-          ...values,
+          title: values.title,
+          description: values.description,
+          status: values.status,
+          priority: values.priority,
+          projectId: values.projectId,
+          assignedTo: values.assignedTo,
+          dueDate: values.dueDate,
           createdBy: currentUser?.id || 'user-1', // Default to first user if not authenticated
         })
       );
